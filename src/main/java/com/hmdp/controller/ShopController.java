@@ -7,6 +7,7 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.service.IShopService;
 import com.hmdp.utils.SystemConstants;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -31,9 +32,11 @@ public class ShopController {
      * @param id 商铺id
      * @return 商铺详情数据
      */
+    @Cacheable(cacheNames = "shopCache",key = "#id")
     @GetMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
-        return Result.ok(shopService.getById(id));
+        Shop shop = shopService.getById(id);
+        return Result.ok(shop);
     }
 
     /**

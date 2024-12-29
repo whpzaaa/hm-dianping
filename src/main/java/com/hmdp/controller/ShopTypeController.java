@@ -4,6 +4,7 @@ package com.hmdp.controller;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.ShopType;
 import com.hmdp.service.IShopTypeService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +25,7 @@ import java.util.List;
 public class ShopTypeController {
     @Resource
     private IShopTypeService typeService;
-
+    @Cacheable(cacheNames = "shop-typeCache")
     @GetMapping("list")
     public Result queryTypeList() {
         List<ShopType> typeList = typeService
