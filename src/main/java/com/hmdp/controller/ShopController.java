@@ -9,6 +9,7 @@ import com.hmdp.service.IShopService;
 import com.hmdp.utils.SystemConstants;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -58,6 +59,7 @@ public class ShopController {
      * @param shop 商铺数据
      * @return 无
      */
+    @Transactional
     @CacheEvict(cacheNames = "shopCache", key = "#shop.id",beforeInvocation = true)
     @PutMapping
     public Result updateShop(@RequestBody Shop shop) {
