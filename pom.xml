@@ -40,7 +40,7 @@
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
             <scope>runtime</scope>
-            <version>5.1.47</version>
+            <version>8.0.30</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -78,7 +78,7 @@
                         </exclude>
                     </excludes>
                 </configuration>
-            </plugin>
+            </plugin><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><configuration><source>8</source><target>8</target></configuration></plugin>
         </plugins>
     </build>
 

@@ -34,11 +34,9 @@ public class ShopController {
      * @param id 商铺id
      * @return 商铺详情数据
      */
-    @Cacheable(cacheNames = "shopCache",key = "#id")
     @GetMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
-        Shop shop = shopService.getById(id);
-        return Result.ok(shop);
+        return shopService.queryById(id);
     }
 
     /**
@@ -60,7 +58,7 @@ public class ShopController {
      * @return 无
      */
     @Transactional
-    @CacheEvict(cacheNames = "shopCache", key = "#shop.id",beforeInvocation = true)
+    @CacheEvict(cacheNames = "shopCache", key = "#shop.id")
     @PutMapping
     public Result updateShop(@RequestBody Shop shop) {
         // 写入数据库
