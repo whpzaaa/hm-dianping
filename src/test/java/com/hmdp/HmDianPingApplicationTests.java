@@ -4,6 +4,8 @@ import com.hmdp.entity.Shop;
 import com.hmdp.service.IShopService;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.CacheClient;
+import com.hmdp.utils.RedisIdWorker;
+import io.lettuce.core.ScriptOutputType;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +24,19 @@ class HmDianPingApplicationTests {
     private IShopService service;
     @Autowired
     private CacheClient cacheClient;
-
+    @Autowired
+    private RedisIdWorker redisIdWorker;
     @Test
-    void test() throws InterruptedException {
+    void testSaveToRedis() throws InterruptedException {
         Shop shop = service.getById(1);
         cacheClient.setWithLogicalExpire(CACHE_SHOP_KEY + 1,shop,10L, TimeUnit.SECONDS);
     }
 
+    @Test
+    void testIdWorker(){
+        for (int i = 0; i < 10000; i++) {
+            long orderId = redisIdWorker.nextId("order");
+            System.out.println("id = " + orderId);
+        }
+    }
 }
