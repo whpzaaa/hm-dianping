@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.VoucherOrder;
@@ -9,6 +10,7 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,8 +31,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ISeckillVoucherService seckillVoucherService;
     @Autowired
     private RedisIdWorker redisIdWorker;
+    @Autowired
+    private IVoucherOrderService voucherOrderService;
     @Override
-    @Transactional
     public Result seckillVoucher(Long voucherId) {
         //查询优惠券
         SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
@@ -46,7 +49,27 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (seckillVoucher.getStock() < 1 ) {
             return Result.fail("库存不足");
         }
-        //充足 库存减一
+        Long userId = UserHolder.getUser().getId();
+        //锁对象为userId在字符串常量池的引用 只会锁住id相同的用户
+        synchronized (userId.toString().intern()){
+            //由于自身调用会不经过代理而导致事务失效 所以可采取两种方法
+            //1.注入自身的接口（JDK 动态代理只能代理接口，而不能直接代理类）
+            // 再通过接口的代理对象调用此方法 使得事务生效 voucherOrderService.createVoucherOrder(voucherId)
+            //2.通过aopcontext调用currentProxy方法获取当前对象的代理对象（类型为当前类的接口）
+            //再通过代理对象调用此方法 使得事务生效（1.引入aspectjweaver的依赖 2.启动类添加@enableaspectj...注解暴露代理对象）
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
+        }
+    }
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
+        //检查是否已存在订单
+        Long userId = UserHolder.getUser().getId();
+        Integer count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+        if (count > 0) {
+            return Result.fail("用户已购买过");
+        }
+        //若不存在且库存充足 库存减一
         boolean success = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
                 .eq("voucher_id", voucherId)
@@ -61,7 +84,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         long id = redisIdWorker.nextId("order");
         VoucherOrder voucherOrder = new VoucherOrder();
         voucherOrder.setId(id);
-        voucherOrder.setUserId(UserHolder.getUser().getId());
+        voucherOrder.setUserId(userId);
         voucherOrder.setVoucherId(voucherId);
         save(voucherOrder);
         //返回订单编号
