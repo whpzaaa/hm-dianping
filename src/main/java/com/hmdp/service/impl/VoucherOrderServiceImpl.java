@@ -9,6 +9,7 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,16 +51,29 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("库存不足");
         }
         Long userId = UserHolder.getUser().getId();
+        //order+userid可以只锁住相同用户
+        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:" + userId);
+        //获取锁
+        boolean isLock = simpleRedisLock.tryLock(1200);
         //锁对象为userId在字符串常量池的引用 只会锁住id相同的用户
-        synchronized (userId.toString().intern()){
+//        synchronized (userId.toString().intern()){
             //由于自身调用会不经过代理而导致事务失效 所以可采取两种方法
             //1.注入自身的接口（JDK 动态代理只能代理接口，而不能直接代理类）
             // 再通过接口的代理对象调用此方法 使得事务生效 voucherOrderService.createVoucherOrder(voucherId)
             //2.通过aopcontext调用currentProxy方法获取当前对象的代理对象（类型为当前类的接口）
             //再通过代理对象调用此方法 使得事务生效（1.引入aspectjweaver的依赖 2.启动类添加@enableaspectj...注解暴露代理对象）
+        //如果没获取到锁，则说明正在下单 返回错误提示
+        if (!isLock) {
+            return Result.fail("不可以重复下单");
+        }
+        try {
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
             return proxy.createVoucherOrder(voucherId);
+        } finally {
+            //释放锁
+            simpleRedisLock.unlock();
         }
+//        }
     }
     @Transactional
     public Result createVoucherOrder(Long voucherId) {

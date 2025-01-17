@@ -126,26 +126,25 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 //    }
     //利用互斥锁解决缓存穿透
     public Shop queryWithMutex(Long id){
-        String key = CACHE_SHOP_KEY + id;
-        //先从缓存中获取商铺信息
-        String shopJson = stringRedisTemplate.opsForValue().get(key);
-        //如果存在数据 且数据不为null和空字符串 则返回商铺数据
-        if (shopJson != null && !shopJson.isEmpty()){
-            Shop shop = JSONUtil.toBean(shopJson, Shop.class);
-            return shop;
-        }
-        //解决缓存穿透问题
-        //如果数据为空字符串 则返回空
-        if (shopJson != null) {
-            return null;
-        }
-        String lockKey = LOCK_SHOP_KEY + id;
-
         Shop shop;
+        String key = CACHE_SHOP_KEY + id;
+        String lockKey = LOCK_SHOP_KEY + id;
         try {
             //重建缓存
             //1.获取互斥锁
             while (true) {
+                //先从缓存中获取商铺信息
+                String shopJson = stringRedisTemplate.opsForValue().get(key);
+                //如果存在数据 且数据不为null和空字符串 则返回商铺数据
+                if (shopJson != null && !shopJson.isEmpty()){
+                    shop = JSONUtil.toBean(shopJson, Shop.class);
+                    return shop;
+                }
+                //解决缓存穿透问题
+                //如果数据为空字符串 则返回空
+                if (shopJson != null) {
+                    return null;
+                }
                 boolean isLock = tryLock(lockKey);
                 //2.判断获取是否成功
                 //失败 休眠 并重新获取锁（递归或循环）
