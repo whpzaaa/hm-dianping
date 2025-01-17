@@ -2,19 +2,20 @@ package com.hmdp.utils;
 
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.BooleanUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-@Component
+
 public class SimpleRedisLock implements ILock{
-    @Autowired
+    public SimpleRedisLock(StringRedisTemplate stringRedisTemplate, String name) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.name = name;
+    }
+
     private StringRedisTemplate stringRedisTemplate;
     private String name;
     private static final String KEY_PREFIX = "lock:";
@@ -26,9 +27,7 @@ public class SimpleRedisLock implements ILock{
         UNLOCK_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));
         UNLOCK_SCRIPT.setResultType(Long.class);
     }
-    public SimpleRedisLock(String name) {
-        this.name = name;
-    }
+
     @Override
     public boolean tryLock(long timeoutSec) {
         String key = KEY_PREFIX + name;

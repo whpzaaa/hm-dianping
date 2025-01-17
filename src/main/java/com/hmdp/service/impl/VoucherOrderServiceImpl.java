@@ -13,6 +13,7 @@ import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Autowired
     private RedisIdWorker redisIdWorker;
     @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+    @Autowired
     private IVoucherOrderService voucherOrderService;
     @Override
     public Result seckillVoucher(Long voucherId) {
@@ -52,7 +55,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId = UserHolder.getUser().getId();
         //order+userid可以只锁住相同用户
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:" + userId);
+        SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
         //获取锁
         boolean isLock = simpleRedisLock.tryLock(1200);
         //锁对象为userId在字符串常量池的引用 只会锁住id相同的用户
