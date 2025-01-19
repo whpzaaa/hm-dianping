@@ -11,6 +11,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.apache.tomcat.jni.Lock;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -37,6 +40,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private IVoucherOrderService voucherOrderService;
+    @Autowired
+    private RedissonClient redissonClient;
     @Override
     public Result seckillVoucher(Long voucherId) {
         //查询优惠券
@@ -55,9 +60,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId = UserHolder.getUser().getId();
         //order+userid可以只锁住相同用户
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+        //SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+        RLock lock = redissonClient.getLock("order:" + userId);
         //获取锁
-        boolean isLock = simpleRedisLock.tryLock(1200);
+        boolean isLock = lock.tryLock();
         //锁对象为userId在字符串常量池的引用 只会锁住id相同的用户
 //        synchronized (userId.toString().intern()){
             //由于自身调用会不经过代理而导致事务失效 所以可采取两种方法
@@ -74,7 +80,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return proxy.createVoucherOrder(voucherId);
         } finally {
             //释放锁
-            simpleRedisLock.unlock();
+            lock.unlock();
         }
 //        }
     }

@@ -1,13 +1,14 @@
 package com.hmdp.config;
 
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -17,7 +18,7 @@ import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
 
 @Configuration
 @EnableCaching
-public class RedisCacheConfig {
+public class RedisConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
@@ -35,6 +36,15 @@ public class RedisCacheConfig {
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
+    }
+    @Bean
+    public RedissonClient redissonClient(){
+        // 配置娄
+        Config config =new Config();
+        //添加redis地址，这里添加了单点的地址，也可以使用config,useclusterServers()添加集群地址
+        config.useSingleServer().setAddress("redis://127.0.0.1:6379").setPassword("123456");
+        // 创建客户端
+        return Redisson.create(config);
     }
 }
 
