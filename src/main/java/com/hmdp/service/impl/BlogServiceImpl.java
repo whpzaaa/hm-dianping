@@ -168,6 +168,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         //查询收件箱
         String key = FEED_KEY + user.getId();
+        //0为最小值 max为最大值 也即上次查询的最小值 offset为从小于等于最大值的第几个开始取 也即上一次查询与最小值相同的个数 2为查询几个
         Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet().reverseRangeByScoreWithScores(key, 0, max, offset, 2);
         //获取博客ids 和最小值以及offset
         if (typedTuples == null || typedTuples.isEmpty()) {
