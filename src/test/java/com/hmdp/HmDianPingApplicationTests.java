@@ -10,12 +10,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.geo.Point;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoLocation;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
-import static com.hmdp.utils.RedisConstants.SECKILL_STOCK_KEY;
+import static com.hmdp.utils.RedisConstants.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -26,6 +33,8 @@ class HmDianPingApplicationTests {
     private CacheClient cacheClient;
     @Autowired
     private RedisIdWorker redisIdWorker;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
     @Test
     void testSaveToRedis() throws InterruptedException {
         Shop shop = service.getById(1);
@@ -37,6 +46,26 @@ class HmDianPingApplicationTests {
         for (int i = 0; i < 10000; i++) {
             long orderId = redisIdWorker.nextId("order");
             System.out.println("id = " + orderId);
+        }
+    }
+    @Test
+    void importShopData(){
+        //查询所有商铺
+        List<Shop> list = service.list();
+        //按类型分类
+        Map<Long, List<Shop>> map = list.stream().collect(Collectors.groupingBy(Shop::getTypeId));
+        //以类型为key 将x ，y坐标和商铺id存入redis总
+        for (Map.Entry<Long, List<Shop>> entry : map.entrySet()) {
+            String key = SHOP_GEO_KEY + entry.getKey();
+            List<Shop> value = entry.getValue();
+            Map<String , Point> pointMap = new HashMap<>(value.size());
+            for (Shop shop : value) {
+                Long shopId = shop.getId();
+                Double x = shop.getX();
+                Double y = shop.getY();
+                pointMap.put(shopId.toString(),new Point(x,y));
+            }
+            stringRedisTemplate.opsForGeo().add(key,pointMap);
         }
     }
 }
