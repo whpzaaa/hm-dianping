@@ -15,12 +15,17 @@ import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.UserHolder;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -98,5 +103,66 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.expire(LOGIN_USER_KEY + token,LOGIN_USER_TTL,TimeUnit.MINUTES);
         //返回token
         return Result.ok(token);
+    }
+
+    @Override
+    public Result sign() {
+        //获取用户
+        UserDTO user = UserHolder.getUser();
+        //若用户为空 则直接返回
+        if (user == null) {
+            return Result.ok();
+        }
+        //以用户名+年月为key
+        String nickName = user.getNickName();
+        LocalDateTime now = LocalDateTime.now();
+        String yM = now.format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String key = nickName + ":" + yM;
+        //获取当前日为第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //将其设为1
+        stringRedisTemplate.opsForValue().setBit(key,dayOfMonth - 1,true);
+        return Result.ok();
+    }
+
+    @Override
+    public Result signCount() {
+        //获取用户
+        UserDTO user = UserHolder.getUser();
+        //若用户为空 则直接返回
+        if (user == null) {
+            return Result.ok(0);
+        }
+        //以用户名+年月为key
+        String nickName = user.getNickName();
+        LocalDateTime now = LocalDateTime.now();
+        String yM = now.format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String key = nickName + ":" + yM;
+        //获取当前日为第几天
+        int dayOfMonth = now.getDayOfMonth();
+        List<Long> list = stringRedisTemplate.opsForValue().bitField(
+                key,
+                //子命令 无符号 返回dayofMonth位 从0开始 即返回从月初到今日的数据
+                BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0)
+        );
+        //如果为空则返回0天
+        if (list == null || list.isEmpty()) {
+            return Result.ok(0);
+        }
+        Long num = list.get(0);
+        if (num == null || num == 0) {
+            return Result.ok(0);
+        }
+        //统计1的个数
+        int count = 0;
+        //num和1做与运算 即最后一个二进制位与1做与运算 若为1则进入循环 若不为1则跳出循环
+        while ((num & 1) == 1) {
+            //个数加一
+            count ++;
+            //num向右移一位
+            num = num >> 1;
+        }
+        //返回个数
+        return Result.ok(count);
     }
 }
